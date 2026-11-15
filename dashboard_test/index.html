@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DengueRisk AI Analytics</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js (กราฟ) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Sarabun', 'Inter', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* SVG Map Styling */
+        .district-path {
+            stroke: #ffffff;
+            stroke-width: 4;
+            stroke-linejoin: round;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .district-path:hover {
+            opacity: 0.8;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+        }
+        .district-label {
+            font-family: 'Sarabun', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            fill: #475569;
+            pointer-events: none;
+            text-anchor: middle;
+            transition: fill 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- 1. Top Header -->
+    <header class="h-16 bg-white border-b border-slate-200 px-6 flex justify-between items-center shrink-0 z-20 shadow-sm relative">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-chart-network"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 leading-tight">DengueRisk AI Analytics</h1>
+                <p class="text-xs text-slate-500 font-medium">Public Health Clustering Intelligence</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
+                <i class="fa-solid fa-location-dot text-slate-400"></i>
+                <select class="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer">
+                    <option>จังหวัดนนทบุรี (Nonthaburi)</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. Main Workspace -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Sidebar: District List -->
+        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 z-10">
+            <div class="p-4 border-b border-slate-100 bg-slate-50">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider">พื้นที่สำรวจ (6 อำเภอ)</h2>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-2" id="sidebarList">
+                <!-- รายชื่ออำเภอจะถูกสร้างด้วย JavaScript -->
+            </div>
+        </aside>
+
+        <!-- Right Content: Map & Charts -->
+        <main class="flex-1 flex flex-col p-5 gap-5 overflow-y-auto bg-slate-50/50">
+            
+            <!-- Top Row: Detail Card & Map -->
+            <div class="flex flex-col lg:flex-row gap-5 h-[45vh] min-h-[350px]">
+                
+                <!-- Action Plan Card -->
+                <div class="lg:w-1/3 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h3 class="font-semibold text-slate-700">ข้อมูลเชิงลึก (Area Insights)</h3>
+                        <i class="fa-solid fa-microchip text-slate-400"></i>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col justify-center relative">
+                        <div id="welcomeState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 p-6 text-center bg-white z-10">
+                            <i class="fa-solid fa-mouse-pointer text-3xl mb-3 text-slate-300"></i>
+                            <p class="text-sm">กรุณาเลือกอำเภอจากเมนูด้านซ้าย หรือคลิกบนบล็อกแผนที่</p>
+                        </div>
+                        
+                        <div id="insightContent" class="opacity-0 transition-opacity duration-300">
+                            <div class="flex items-center gap-3 mb-4">
+                                <h2 id="cardDistName" class="text-2xl font-bold text-slate-900">อำเภอ...</h2>
+                                <span id="cardBadge" class="px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm">Cluster...</span>
+                            </div>
+                            
+                            <div class="bg-slate-50 rounded-lg border border-slate-100 p-4 relative overflow-hidden">
+                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-slate-800" id="actionAccent"></div>
+                                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    <i class="fa-solid fa-robot"></i> AI Action Plan
+                                </h4>
+                                <p id="cardAction" class="text-sm font-medium text-slate-800 leading-relaxed">
+                                    ...
+                                </p>
+                            </div>
+                            
+                            <div class="mt-4 grid grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-xs text-slate-500">อัตราป่วย (ต่อแสนคน)</p>
+                                    <p id="statIncidence" class="text-lg font-bold text-slate-800">0</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-slate-500">ระบาดซ้ำซาก</p>
+                                    <p id="statEndemic" class="text-lg font-bold text-slate-800">0 ปี</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clean SVG Block Map Card -->
+                <div class="lg:w-2/3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative flex items-center justify-center p-4">
+                    <div class="absolute top-4 right-4 bg-white/90 px-3 py-1.5 rounded border border-slate-200 shadow-sm z-10 text-xs font-semibold text-slate-600">
+                        <i class="fa-solid fa-shapes text-blue-500 mr-1"></i> Block Map View
+                    </div>
+                    
+                    <!-- โครงสร้าง SVG แผนที่นนทบุรีแบบบล็อก -->
+                    <svg viewBox="0 0 500 500" class="w-full h-full max-h-[400px] drop-shadow-sm">
+                        <!-- d3: ไทรน้อย -->
+                        <path id="path-d3" class="district-path" fill="#e2e8f0" d="M 50,50 L 220,70 L 200,200 L 100,250 Z" onclick="selectDistrict('d3')"></path>
+                        <text id="text-d3" x="140" y="140" class="district-label">ไทรน้อย</text>
+                        
+                        <!-- d4: บางบัวทอง -->
+                        <path id="path-d4" class="district-path" fill="#e2e8f0" d="M 220,70 L 350,90 L 320,240 L 200,200 Z" onclick="selectDistrict('d4')"></path>
+                        <text id="text-d4" x="270" y="160" class="district-label">บางบัวทอง</text>
+                        
+                        <!-- d5: ปากเกร็ด -->
+                        <path id="path-d5" class="district-path" fill="#e2e8f0" d="M 350,90 L 460,110 L 450,260 L 320,240 Z" onclick="selectDistrict('d5')"></path>
+                        <text id="text-d5" x="390" y="180" class="district-label">ปากเกร็ด</text>
+                        
+                        <!-- d2: บางใหญ่ -->
+                        <path id="path-d2" class="district-path" fill="#e2e8f0" d="M 100,250 L 200,200 L 320,240 L 280,350 L 120,360 Z" onclick="selectDistrict('d2')"></path>
+                        <text id="text-d2" x="210" y="290" class="district-label">บางใหญ่</text>
+                        
+                        <!-- d1: เมืองนนทบุรี -->
+                        <path id="path-d1" class="district-path" fill="#e2e8f0" d="M 320,240 L 450,260 L 430,370 L 280,350 Z" onclick="selectDistrict('d1')"></path>
+                        <text id="text-d1" x="360" y="320" class="district-label">เมืองนนทบุรี</text>
+                        
+                        <!-- d6: บางกรวย -->
+                        <path id="path-d6" class="district-path" fill="#e2e8f0" d="M 120,360 L 280,350 L 430,370 L 350,460 L 150,450 Z" onclick="selectDistrict('d6')"></path>
+                        <text id="text-d6" x="270" y="410" class="district-label">บางกรวย</text>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Charts -->
+            <div class="flex flex-col lg:flex-row gap-5 h-[40vh] min-h-[300px]">
+                
+                <!-- Radar Chart Card -->
+                <div class="lg:w-1/3 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-slate-700">Cluster DNA</h3>
+                        <i class="fa-solid fa-radar text-slate-400"></i>
+                    </div>
+                    <div class="flex-1 relative w-full h-full">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bar Chart Card -->
+                <div class="lg:w-2/3 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-slate-700">เปรียบเทียบอัตราป่วย</h3>
+                        <i class="fa-solid fa-chart-simple text-slate-400"></i>
+                    </div>
+                    <div class="flex-1 relative w-full h-full">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --------------------------------------------------------
+        // 1. Data Configuration
+        // --------------------------------------------------------
+        const districtsData = [
+            { id: 'd1', name: 'เมืองนนทบุรี', cluster: 1, cName: 'วิกฤตเมือง', color: '#ef4444', 
+              action: 'Alert: Urban Outbreak - ลอกท่อระบายน้ำด่วน สำรวจลูกน้ำในเขตชุมชนเมืองแออัดตลอดทั้งปี ไม่ต้องรอฤดูฝน', 
+              raw: [1150, 95, 40, 55, 6], radar: [100, 95, 40, 55, 100] },
+            
+            { id: 'd2', name: 'บางใหญ่', cluster: 1, cName: 'วิกฤตเมือง', color: '#ef4444', 
+              action: 'Alert: Urban Outbreak - จัดการน้ำขังในเขตก่อสร้างรถไฟฟ้าและชุมชนแออัด', 
+              raw: [950, 85, 45, 60, 5], radar: [82, 85, 45, 60, 83] },
+            
+            { id: 'd3', name: 'ไทรน้อย', cluster: 3, cName: 'ยุงโรงเรียน', color: '#f97316', 
+              action: 'Alert: Seasonal Youth - เน้นพ่นหมอกควันและแจกทรายอะเบทในโรงเรียนและศูนย์เด็กเล็กก่อนช่วงเปิดเทอมหน้าฝน', 
+              raw: [520, 20, 85, 80, 3], radar: [45, 20, 85, 80, 50] },
+            
+            { id: 'd4', name: 'บางบัวทอง', cluster: 4, cName: 'ชานเมือง', color: '#3b82f6', 
+              action: 'Monitor: Mixed Environment - เฝ้าระวังปกติ คว่ำภาชนะรอบบ้านเรือนและสวนเกษตรกรรม', 
+              raw: [480, 45, 50, 50, 3], radar: [41, 45, 50, 50, 50] },
+            
+            { id: 'd5', name: 'ปากเกร็ด', cluster: 1, cName: 'วิกฤตเมือง', color: '#ef4444', 
+              action: 'Alert: Urban Outbreak - เฝ้าระวังพื้นที่หมู่บ้านจัดสรรและคอนโดมิเนียม จัดการขยะชุมชนด่วน', 
+              raw: [1020, 90, 42, 58, 5], radar: [88, 90, 42, 58, 83] },
+            
+            { id: 'd6', name: 'บางกรวย', cluster: 0, cName: 'ปลอดภัย', color: '#10b981', 
+              action: 'Status: Low Risk - ความเสี่ยงต่ำ เฝ้าระวังผู้ป่วยที่เดินทางมาจากเขตเมือง', 
+              raw: [150, 30, 45, 40, 1], radar: [13, 30, 45, 40, 16] }
+        ];
+
+        let selectedDistrictId = null;
+
+        // --------------------------------------------------------
+        // 2. Initialize Chart.js
+        // --------------------------------------------------------
+        Chart.defaults.font.family = "'Sarabun', sans-serif";
+        Chart.defaults.color = '#64748b';
+
+        const ctxRadar = document.getElementById('radarChart').getContext('2d');
+        const radarChart = new Chart(ctxRadar, {
+            type: 'radar',
+            data: {
+                labels: ['อัตราป่วย', 'เขตเมือง', 'หน้าฝน', 'วัยรุ่น', 'ซ้ำซาก'],
+                datasets: [{
+                    label: 'ข้อมูลพื้นที่', data: [0,0,0,0,0],
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 1)',
+                    pointBackgroundColor: 'rgba(59, 130, 246, 1)', borderWidth: 2, pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { r: { angleLines: { color: 'rgba(0,0,0,0.05)' }, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { display: false, min: 0, max: 100 } } }
+            }
+        });
+
+        const ctxBar = document.getElementById('barChart').getContext('2d');
+        const barChart = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: districtsData.map(d => d.name),
+                datasets: [{
+                    label: 'อัตราป่วย',
+                    data: districtsData.map(d => d.raw[0]),
+                    backgroundColor: districtsData.map(() => '#e2e8f0'),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } },
+                onClick: (event, elements) => {
+                    if (elements.length > 0) selectDistrict(districtsData[elements[0].index].id);
+                }
+            }
+        });
+
+        // --------------------------------------------------------
+        // 3. Application Logic
+        // --------------------------------------------------------
+        
+        // Build Sidebar
+        const sidebarList = document.getElementById('sidebarList');
+        districtsData.forEach(d => {
+            const btn = document.createElement('button');
+            btn.id = `sidebar-btn-${d.id}`;
+            btn.className = `w-full text-left p-3 rounded-lg border border-transparent transition-all flex items-center justify-between hover:bg-slate-100 group`;
+            btn.innerHTML = `
+                <div>
+                    <div class="font-semibold text-slate-700 group-hover:text-slate-900">อ.${d.name}</div>
+                    <div class="text-xs font-medium" style="color:${d.color}">Cluster ${d.cluster}</div>
+                </div>
+                <div class="w-2 h-2 rounded-full" style="background-color:${d.color}"></div>
+            `;
+            btn.onclick = () => selectDistrict(d.id);
+            sidebarList.appendChild(btn);
+        });
+
+        // Core Interactive Engine
+        function selectDistrict(id) {
+            const data = districtsData.find(d => d.id === id);
+            if(!data) return;
+            selectedDistrictId = id;
+
+            // 1. Update Sidebar
+            districtsData.forEach(d => {
+                const btn = document.getElementById(`sidebar-btn-${d.id}`);
+                if (d.id === id) {
+                    btn.classList.add('bg-white', 'shadow-sm', 'border-slate-200');
+                    btn.classList.remove('hover:bg-slate-100');
+                } else {
+                    btn.classList.remove('bg-white', 'shadow-sm', 'border-slate-200');
+                    btn.classList.add('hover:bg-slate-100');
+                }
+            });
+
+            // 2. Update SVG Map Colors
+            districtsData.forEach(d => {
+                const path = document.getElementById(`path-${d.id}`);
+                const text = document.getElementById(`text-${d.id}`);
+                if (d.id === id) {
+                    path.setAttribute('fill', d.color);
+                    text.style.fill = '#ffffff'; // ตัวหนังสือสีขาวเมื่อถูกเลือก
+                } else {
+                    path.setAttribute('fill', '#e2e8f0'); // สีเทาปกติ
+                    text.style.fill = '#475569';
+                }
+            });
+
+            // 3. Reveal Insights
+            document.getElementById('welcomeState').style.display = 'none';
+            document.getElementById('insightContent').classList.remove('opacity-0');
+            document.getElementById('insightContent').classList.add('opacity-100');
+
+            // 4. Update Text
+            document.getElementById('cardDistName').innerText = `อ.${data.name}`;
+            const badge = document.getElementById('cardBadge');
+            badge.innerText = `Cluster ${data.cluster}: ${data.cName}`;
+            badge.style.backgroundColor = data.color;
+            document.getElementById('actionAccent').style.backgroundColor = data.color;
+            document.getElementById('cardAction').innerText = data.action;
+            document.getElementById('statIncidence').innerText = data.raw[0].toLocaleString();
+            document.getElementById('statEndemic').innerText = `${data.raw[4]} ปี`;
+
+            // 5. Update Charts
+            radarChart.data.datasets[0].data = data.radar;
+            radarChart.data.datasets[0].borderColor = data.color;
+            radarChart.data.datasets[0].backgroundColor = data.color + '33';
+            radarChart.data.datasets[0].pointBackgroundColor = data.color;
+            radarChart.update();
+
+            barChart.data.datasets[0].backgroundColor = districtsData.map(d => d.id === id ? d.color : '#e2e8f0');
+            barChart.update();
+        }
+
+    </script>
+</body>
+</html>
